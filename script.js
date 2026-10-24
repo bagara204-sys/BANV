@@ -1,33 +1,46 @@
 
 function cadastro() {
     const usuario = prompt("Crie seu usuário:");
-    if (!usuario) return;
+    if (!usuario || !usuario.trim()) return;
 
     const senha = prompt("Crie sua senha:");
     if (!senha) return;
 
-    localStorage.setItem("usuario", usuario);
+    localStorage.setItem("usuario", usuario.trim());
     localStorage.setItem("senha", senha);
 
-    alert("Cadastro realizado!");
+    alert("Cadastro realizado! Agora você pode entrar.");
 }
 
 function login() {
-    const usuario = document.getElementById("usuario").value;
-    const senha = document.getElementById("senha").value;
+    const campoUsuario = document.getElementById("usuario");
+    const campoSenha = document.getElementById("senha");
 
-    if (
-        usuario === localStorage.getItem("usuario") &&
-        senha === localStorage.getItem("senha")
-    ) {
-        window.location.href = "home.html";
+    if (!campoUsuario || !campoSenha) {
+        alert("Não encontrei os campos de login. Verifique o index.html.");
+        return;
+    }
+
+    const usuario = campoUsuario.value.trim();
+    const senha = campoSenha.value;
+
+    const usuarioSalvo = localStorage.getItem("usuario");
+    const senhaSalva = localStorage.getItem("senha");
+
+    if (!usuarioSalvo || !senhaSalva) {
+        alert("Faça seu cadastro antes de entrar.");
+        return;
+    }
+
+    if (usuario === usuarioSalvo && senha === senhaSalva) {
+        window.location.href = "./home.html";
     } else {
         alert("Usuário ou senha incorretos.");
     }
 }
 
 function logout() {
-    window.location.href = "index.html";
+    window.location.href = "./index.html";
 }
 
 // GRAVAÇÃO E TRANSCRIÇÃO
@@ -66,16 +79,19 @@ function iniciarGravacao() {
         }
 
         const campo = document.getElementById("textoAula");
-        campo.value += texto;
+
+        if (campo) {
+            campo.value += texto;
+        }
     };
 
     recognition.onerror = function (event) {
-        console.error("Erro no reconhecimento:", event.error);
+        console.error("Erro na transcrição:", event.error);
 
         if (event.error === "not-allowed") {
             alert("Permita o uso do microfone nas configurações do navegador.");
         } else if (event.error !== "no-speech") {
-            alert("Ocorreu um erro na transcrição: " + event.error);
+            alert("Erro na transcrição: " + event.error);
         }
     };
 
@@ -86,7 +102,8 @@ function iniciarGravacao() {
     try {
         recognition.start();
     } catch (erro) {
-        alert("Não foi possível iniciar. Tente novamente.");
+        console.error(erro);
+        alert("Não foi possível iniciar a transcrição. Tente novamente.");
     }
 }
 
@@ -96,12 +113,16 @@ function pararGravacao() {
     }
 }
 
-// AGENTE BLUE
-
-
+// AGENTE BLUE — RESUMO COM IA
 async function gerarResumo() {
     const campo = document.getElementById("textoAula");
     const resultado = document.getElementById("resultado");
+
+    if (!campo || !resultado) {
+        alert("Não encontrei a área de texto ou de resultado no home.html.");
+        return;
+    }
+
     const texto = campo.value.trim();
 
     if (!texto) {
@@ -121,7 +142,7 @@ async function gerarResumo() {
                 },
                 body: JSON.stringify({
                     message:
-                        "Faça um resumo claro e organizado deste conteúdo de aula em português brasileiro. Destaque os conceitos principais:\n\n" +
+                        "Resuma este conteúdo de aula em português brasileiro. Organize o resumo com título, conceitos principais e explicações simples:\n\n" +
                         texto
                 })
             }
@@ -131,38 +152,55 @@ async function gerarResumo() {
 
         if (!resposta.ok) {
             throw new Error(
-                dados.details || dados.error ||
-                "Erro ao solicitar o resumo."
+                dados.details ||
+                dados.error ||
+                "O servidor recusou a solicitação."
             );
+        }
+
+        if (!dados.answer) {
+            throw new Error("A IA não retornou um resumo.");
         }
 
         const titulo = document.createElement("h3");
         titulo.textContent = "🤖 Agente BLUE — Resumo inteligente";
 
         const paragrafo = document.createElement("p");
-        paragrafo.textContent = dados.answer ||
-            "Não foi possível gerar o resumo.";
+        paragrafo.textContent = dados.answer;
 
         resultado.replaceChildren(titulo, paragrafo);
 
-    
-} catch (erro) {
-    console.error("Erro no Agente BLUE:", erro);
-
-    resultado.textContent =
-        "Erro na conexão: " + erro.message;
-}
+    } catch (erro) {
+        console.error("Erro no Agente BLUE:", erro);
 
         resultado.textContent =
-            "Não foi possível conectar à IA. Verifique o Worker e tente novamente.";
+            "Não foi possível gerar o resumo: " + erro.message;
     }
 }
 
+// EVITAR CÓDIGO HTML INDESEJADO NO MAPA
+function escaparHTML(texto) {
+    return texto.replace(/[&<>"']/g, function (caractere) {
+        const entidades = {
+            "&": "&amp;",
+            "<": "&lt;",
+            ">": "&gt;",
+            '"': "&quot;",
+            "'": "&#39;"
+        };
 
+        return entidades[caractere];
+    });
+}
 
 // MAPA MENTAL
 function gerarMapa() {
-    const texto = document.getElementById("textoAula").value.trim();
+    const campo = document.getElementById("textoAula");
+    const resultado = document.getElementById("resultado");
+
+    if (!campo || !resultado) return;
+
+    const texto = campo.value.trim();
 
     if (!texto) {
         alert("Digite ou transcreva o conteúdo da aula primeiro.");
@@ -170,7 +208,7 @@ function gerarMapa() {
     }
 
     const frases = texto
-        .split(/[.!?]+/)
+        .split(/[.!?\n]+/)
         .map(frase => frase.trim())
         .filter(Boolean);
 
@@ -190,8 +228,7 @@ function gerarMapa() {
     });
 
     html += "</div>";
-
-    document.getElementById("resultado").innerHTML = html;
+    resultado.innerHTML = html;
 }
 
 // EXPORTAR PDF
@@ -201,9 +238,10 @@ function gerarPDF() {
         return;
     }
 
-    const resultado = document.getElementById("resultado").innerText.trim();
+    const resultado = document.getElementById("resultado");
+    const texto = resultado ? resultado.innerText.trim() : "";
 
-    if (!resultado) {
+    if (!texto) {
         alert("Gere um resumo ou mapa mental antes de baixar o PDF.");
         return;
     }
@@ -216,7 +254,7 @@ function gerarPDF() {
 
     doc.setFontSize(11);
 
-    const linhas = doc.splitTextToSize(resultado, 180);
+    const linhas = doc.splitTextToSize(texto, 180);
     let y = 25;
 
     linhas.forEach(linha => {
