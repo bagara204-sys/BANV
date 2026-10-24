@@ -1,187 +1,252 @@
-function cadastro(){
 
-let usuario = prompt("Crie seu usuário:");
-let senha = prompt("Crie sua senha:");
+function cadastro() {
+    const usuario = prompt("Crie seu usuário:");
+    if (!usuario) return;
 
-localStorage.setItem("usuario",usuario);
-localStorage.setItem("senha",senha);
+    const senha = prompt("Crie sua senha:");
+    if (!senha) return;
 
-alert("Cadastro realizado!");
+    localStorage.setItem("usuario", usuario);
+    localStorage.setItem("senha", senha);
+
+    alert("Cadastro realizado!");
 }
 
-function login(){
+function login() {
+    const usuario = document.getElementById("usuario").value;
+    const senha = document.getElementById("senha").value;
 
-let usuario =
-document.getElementById("usuario").value;
-
-let senha =
-document.getElementById("senha").value;
-
-if(
-usuario===localStorage.getItem("usuario")
-&&
-senha===localStorage.getItem("senha")
-){
-window.location.href="home.html";
-}
-else{
-alert("Usuário ou senha incorretos");
-}
+    if (
+        usuario === localStorage.getItem("usuario") &&
+        senha === localStorage.getItem("senha")
+    ) {
+        window.location.href = "home.html";
+    } else {
+        alert("Usuário ou senha incorretos.");
+    }
 }
 
-function logout(){
-window.location.href="index.html";
+function logout() {
+    window.location.href = "index.html";
 }
 
-let recognition;
+// GRAVAÇÃO E TRANSCRIÇÃO
+let recognition = null;
+let gravando = false;
 
-function iniciarGravacao(){
+function iniciarGravacao() {
+    const SpeechRecognition =
+        window.SpeechRecognition ||
+        window.webkitSpeechRecognition;
 
-const SpeechRecognition =
-window.SpeechRecognition ||
-window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+        alert("Seu navegador não suporta reconhecimento de voz. Tente usar o Chrome.");
+        return;
+    }
 
-recognition = new SpeechRecognition();
+    if (gravando) return;
 
-recognition.lang="pt-BR";
-recognition.continuous=true;
+    recognition = new SpeechRecognition();
+    recognition.lang = "pt-BR";
+    recognition.continuous = true;
+    recognition.interimResults = false;
 
-recognition.start();
+    recognition.onstart = function () {
+        gravando = true;
+        alert("Transcrição iniciada!");
+    };
 
-recognition.onresult=function(event){
+    recognition.onresult = function (event) {
+        let texto = "";
 
-let texto="";
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+            if (event.results[i].isFinal) {
+                texto += event.results[i][0].transcript + " ";
+            }
+        }
 
-for(
-let i=0;
-i<event.results.length;
-i++
-){
-texto+=event.results[i][0].transcript+" ";
+        const campo = document.getElementById("textoAula");
+        campo.value += texto;
+    };
+
+    recognition.onerror = function (event) {
+        console.error("Erro no reconhecimento:", event.error);
+
+        if (event.error === "not-allowed") {
+            alert("Permita o uso do microfone nas configurações do navegador.");
+        } else if (event.error !== "no-speech") {
+            alert("Ocorreu um erro na transcrição: " + event.error);
+        }
+    };
+
+    recognition.onend = function () {
+        gravando = false;
+    };
+
+    try {
+        recognition.start();
+    } catch (erro) {
+        alert("Não foi possível iniciar. Tente novamente.");
+    }
 }
 
-document.getElementById("textoAula").value=
-texto;
-
-};
-
+function pararGravacao() {
+    if (recognition && gravando) {
+        recognition.stop();
+    }
 }
 
-function pararGravacao(){
-
-if(recognition){
-recognition.stop();
-}
-
-}
-
+// AGENTE BLUE
 class AgenteBLUE {
-
-    analisar(texto){
-
+    analisar(texto) {
         return {
             resumo: gerarResumoIA(texto),
             palavrasChave: extrairPalavras(texto)
         };
+    }
+}
 
+function gerarResumoIA(texto) {
+    const frases = texto
+        .split(/[.!?]+/)
+        .map(frase => frase.trim())
+        .filter(Boolean);
+
+    if (frases.length === 0) {
+        return "Não há texto suficiente para criar um resumo.";
     }
 
+    return frases.slice(0, 3).join(". ") + ".";
 }
 
-function extrairPalavras(texto){
+function extrairPalavras(texto) {
+    const ignorar = new Set([
+        "para", "como", "esse", "essa", "isso", "mais",
+        "muito", "sobre", "uma", "uns", "umas", "dos",
+        "das", "que", "com", "por", "são", "ser",
+        "foi", "tem", "ter", "nos", "nas", "aos",
+        "aqui", "eles", "elas", "pela", "pelo",
+        "the", "and", "com", "uma"
+    ]);
 
-    let palavras = texto.split(" ");
+    const palavras = texto
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .match(/[a-z0-9]+/g) || [];
 
-    return palavras.slice(0,10);
+    const contagem = {};
 
+    palavras.forEach(palavra => {
+        if (palavra.length > 3 && !ignorar.has(palavra)) {
+            contagem[palavra] = (contagem[palavra] || 0) + 1;
+        }
+    });
+
+    return Object.entries(contagem)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10)
+        .map(item => item[0]);
 }
 
-function gerarResumoIA(texto){
-
-    let frases = texto.split(".");
-
-    return frases.slice(0,3).join(".");
-
+function escaparHTML(texto) {
+    return String(texto).replace(/[&<>"']/g, caractere => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+    })[caractere]);
 }
 
-function gerarResumo(){
+function gerarResumo() {
+    const texto = document.getElementById("textoAula").value.trim();
 
-let texto=
-document.getElementById("textoAula").value;
+    if (!texto) {
+        alert("Grave ou digite o conteúdo da aula primeiro.");
+        return;
+    }
 
-let frases=
-texto.split(".");
-} 
-function gerarResumo(){
-
-    let texto =
-    document.getElementById("textoAula").value;
-
-    let agente = new AgenteBLUE();
-
-    let resultado = agente.analisar(texto);
+    const agente = new AgenteBLUE();
+    const resultado = agente.analisar(texto);
 
     document.getElementById("resultado").innerHTML = `
         <h3>🤖 Agente BLUE</h3>
         <h4>Resumo</h4>
-        <p>${resultado.resumo}</p>
-
+        <p>${escaparHTML(resultado.resumo)}</p>
         <h4>Palavras-chave</h4>
-        <p>${resultado.palavrasChave.join(", ")}</p>
+        <p>${escaparHTML(resultado.palavrasChave.join(", ") || "Nenhuma palavra-chave encontrada.")}</p>
+    `;
+}
+
+// MAPA MENTAL
+function gerarMapa() {
+    const texto = document.getElementById("textoAula").value.trim();
+
+    if (!texto) {
+        alert("Digite ou transcreva o conteúdo da aula primeiro.");
+        return;
+    }
+
+    const frases = texto
+        .split(/[.!?]+/)
+        .map(frase => frase.trim())
+        .filter(Boolean);
+
+    let html = `
+        <h3>🧠 Mapa Mental</h3>
+        <div class="mindmap">
+            <div class="centro">Tema principal</div>
     `;
 
+    frases.forEach(frase => {
+        html += `
+            <div class="ramo">
+                <span>➜</span>
+                <div class="caixa">${escaparHTML(frase)}</div>
+            </div>
+        `;
+    });
+
+    html += "</div>";
+
+    document.getElementById("resultado").innerHTML = html;
 }
 
-function gerarMapa() {
+// EXPORTAR PDF
+function gerarPDF() {
+    if (!window.jspdf || !window.jspdf.jsPDF) {
+        alert("A biblioteca de PDF não carregou. Verifique sua conexão.");
+        return;
+    }
 
-let texto = document.getElementById("textoAula").value;
+    const resultado = document.getElementById("resultado").innerText.trim();
 
-let frases = texto
-  .split(".")
-  .filter(f => f.trim() !== "");
+    if (!resultado) {
+        alert("Gere um resumo ou mapa mental antes de baixar o PDF.");
+        return;
+    }
 
-let html = `
-<h3>🧠 Mapa Mental</h3>
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
 
-<div class="mindmap">
+    doc.setFontSize(16);
+    doc.text("BLUE - Resumo da aula", 10, 15);
 
-<div class="centro">
-Tema Principal
-</div>
-`;
+    doc.setFontSize(11);
 
-frases.forEach(frase => {
+    const linhas = doc.splitTextToSize(resultado, 180);
+    let y = 25;
 
-html += `
-<div class="ramo">
-<span>➜</span>
-<div class="caixa">
-${frase.trim()}
-</div>
-</div>
-`;
+    linhas.forEach(linha => {
+        if (y > 280) {
+            doc.addPage();
+            y = 15;
+        }
 
-});
+        doc.text(linha, 10, y);
+        y += 7;
+    });
 
-html += `</div>`;
-
-document.getElementById("resultado").innerHTML = html;
-
+    doc.save("Resumo_BLUE.pdf");
 }
-
-
-function gerarPDF(){
-
-const { jsPDF } = window.jspdf;
-
-const doc = new jsPDF();
-
-doc.text(
-document.getElementById("resultado").innerText,
-10,
-20
-);
-
-doc.save("Resumo_BLUE.pdf");
-
-          }
