@@ -98,6 +98,7 @@ function pararGravacao() {
 
 // AGENTE BLUE
 
+
 async function gerarResumo() {
     const campo = document.getElementById("textoAula");
     const resultado = document.getElementById("resultado");
@@ -112,13 +113,17 @@ async function gerarResumo() {
 
     try {
         const resposta = await fetch(
-            "banvy.bagara204.workers.dev",
+            "dawn-cake-d171.bagara204.workers.dev",
             {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json"
                 },
-                body: JSON.stringify({ texto })
+                body: JSON.stringify({
+                    message:
+                        "Faça um resumo claro e organizado deste conteúdo de aula em português brasileiro. Destaque os conceitos principais:\n\n" +
+                        texto
+                })
             }
         );
 
@@ -126,7 +131,8 @@ async function gerarResumo() {
 
         if (!resposta.ok) {
             throw new Error(
-                dados.erro || "Erro ao solicitar o resumo."
+                dados.details || dados.error ||
+                "Erro ao solicitar o resumo."
             );
         }
 
@@ -134,16 +140,19 @@ async function gerarResumo() {
         titulo.textContent = "🤖 Agente BLUE — Resumo inteligente";
 
         const paragrafo = document.createElement("p");
-        paragrafo.textContent = dados.resumo;
+        paragrafo.textContent = dados.answer ||
+            "Não foi possível gerar o resumo.";
 
         resultado.replaceChildren(titulo, paragrafo);
 
     } catch (erro) {
+        console.error("Erro no Agente BLUE:", erro);
+
         resultado.textContent =
-            "Não foi possível conectar à IA. Confira a URL do Worker, a configuração e tente novamente.";
-        console.error(erro);
+            "Não foi possível conectar à IA. Verifique o Worker e tente novamente.";
     }
 }
+
 
 
 // MAPA MENTAL
