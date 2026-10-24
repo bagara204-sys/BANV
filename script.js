@@ -97,87 +97,54 @@ function pararGravacao() {
 }
 
 // AGENTE BLUE
-class AgenteBLUE {
-    analisar(texto) {
-        return {
-            resumo: gerarResumoIA(texto),
-            palavrasChave: extrairPalavras(texto)
-        };
-    }
-}
 
-function gerarResumoIA(texto) {
-    const frases = texto
-        .split(/[.!?]+/)
-        .map(frase => frase.trim())
-        .filter(Boolean);
-
-    if (frases.length === 0) {
-        return "Não há texto suficiente para criar um resumo.";
-    }
-
-    return frases.slice(0, 3).join(". ") + ".";
-}
-
-function extrairPalavras(texto) {
-    const ignorar = new Set([
-        "para", "como", "esse", "essa", "isso", "mais",
-        "muito", "sobre", "uma", "uns", "umas", "dos",
-        "das", "que", "com", "por", "são", "ser",
-        "foi", "tem", "ter", "nos", "nas", "aos",
-        "aqui", "eles", "elas", "pela", "pelo",
-        "the", "and", "com", "uma"
-    ]);
-
-    const palavras = texto
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .match(/[a-z0-9]+/g) || [];
-
-    const contagem = {};
-
-    palavras.forEach(palavra => {
-        if (palavra.length > 3 && !ignorar.has(palavra)) {
-            contagem[palavra] = (contagem[palavra] || 0) + 1;
-        }
-    });
-
-    return Object.entries(contagem)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 10)
-        .map(item => item[0]);
-}
-
-function escaparHTML(texto) {
-    return String(texto).replace(/[&<>"']/g, caractere => ({
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;",
-        "'": "&#39;"
-    })[caractere]);
-}
-
-function gerarResumo() {
-    const texto = document.getElementById("textoAula").value.trim();
+async function gerarResumo() {
+    const campo = document.getElementById("textoAula");
+    const resultado = document.getElementById("resultado");
+    const texto = campo.value.trim();
 
     if (!texto) {
-        alert("Grave ou digite o conteúdo da aula primeiro.");
+        alert("Digite ou transcreva o conteúdo da aula primeiro.");
         return;
     }
 
-    const agente = new AgenteBLUE();
-    const resultado = agente.analisar(texto);
+    resultado.textContent = "🤖 O Agente BLUE está analisando sua aula...";
 
-    document.getElementById("resultado").innerHTML = `
-        <h3>🤖 Agente BLUE</h3>
-        <h4>Resumo</h4>
-        <p>${escaparHTML(resultado.resumo)}</p>
-        <h4>Palavras-chave</h4>
-        <p>${escaparHTML(resultado.palavrasChave.join(", ") || "Nenhuma palavra-chave encontrada.")}</p>
-    `;
+    try {
+        const resposta = await fetch(
+            "banvy.bagara204.workers.dev",
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ texto })
+            }
+        );
+
+        const dados = await resposta.json();
+
+        if (!resposta.ok) {
+            throw new Error(
+                dados.erro || "Erro ao solicitar o resumo."
+            );
+        }
+
+        const titulo = document.createElement("h3");
+        titulo.textContent = "🤖 Agente BLUE — Resumo inteligente";
+
+        const paragrafo = document.createElement("p");
+        paragrafo.textContent = dados.resumo;
+
+        resultado.replaceChildren(titulo, paragrafo);
+
+    } catch (erro) {
+        resultado.textContent =
+            "Não foi possível conectar à IA. Confira a URL do Worker, a configuração e tente novamente.";
+        console.error(erro);
+    }
 }
+
 
 // MAPA MENTAL
 function gerarMapa() {
