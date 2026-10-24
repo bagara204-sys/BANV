@@ -113,7 +113,7 @@ async function gerarResumo() {
 
     try {
         const resposta = await fetch(
-            "dawn-cake-d171.bagara204.workers.dev",
+            "https://baby.bagara204.workers.dev",
             {
                 method: "POST",
                 headers: {
