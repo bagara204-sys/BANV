@@ -1,35 +1,75 @@
-<!DOCTYPE html>
-<html lang="pt-br">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BLUE</title>
 
-<link rel="stylesheet" href="style.css">
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BLUE | Dê voz ao conhecimento</title>
+
+    <link rel="stylesheet" href="./style.css">
 </head>
 
 <body>
+    <div class="login-container">
 
-<div class="login-container">
+        <img
+            src="./Assets/logo_blue.png"
+            class="logo"
+            alt="Logo BLUE"
+        >
 
-<img src="./Assets/logo_blue.png" class="logo" alt="Logo BLUE">
-  
-<h1>BLUE</h1>
-<h3>Dê voz ao conhecimento</h3>
+        <h1>BLUE</h1>
+        <h3>Dê voz ao conhecimento</h3>
 
-<input type="text" id="usuario" placeholder="Usuário">
+        <form id="formLogin">
+            <input
+                type="text"
+                id="usuario"
+                placeholder="Usuário"
+                autocomplete="username"
+                required
+            >
 
-<input type="password" id="senha" placeholder="Senha">
+            <input
+                type="password"
+                id="senha"
+                placeholder="Senha"
+                autocomplete="current-password"
+                required
+            >
 
-<button onclick="login()">Entrar</button>
+            <button type="submit">Entrar</button>
+        </form>
 
-<p onclick="cadastro()" class="cadastro">
-Não tem conta? Cadastre-se
-</p>
+        <p>
+            Não tem conta?
+            <button type="button" id="botaoCadastro">
+                Cadastre-se
+            </button>
+        </p>
 
-</div>
+    </div>
 
-<script src="script.js"></script>
+    <script src="./script.js"></script>
 
+    <script>
+        document.getElementById("formLogin").addEventListener("submit", function(event) {
+            event.preventDefault();
+
+            if (typeof window.login === "function") {
+                window.login();
+            } else {
+                alert("O arquivo script.js não carregou corretamente. Confira o GitHub.");
+            }
+        });
+
+        document.getElementById("botaoCadastro").addEventListener("click", function() {
+            if (typeof window.cadastro === "function") {
+                window.cadastro();
+            } else {
+                alert("O arquivo script.js não carregou corretamente. Confira o GitHub.");
+            }
+        });
+    </script>
 </body>
 </html>
