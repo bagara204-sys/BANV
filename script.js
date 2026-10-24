@@ -145,8 +145,13 @@ async function gerarResumo() {
 
         resultado.replaceChildren(titulo, paragrafo);
 
-    } catch (erro) {
-        console.error("Erro no Agente BLUE:", erro);
+    
+} catch (erro) {
+    console.error("Erro no Agente BLUE:", erro);
+
+    resultado.textContent =
+        "Erro na conexão: " + erro.message;
+}
 
         resultado.textContent =
             "Não foi possível conectar à IA. Verifique o Worker e tente novamente.";
