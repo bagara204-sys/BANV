@@ -17,25 +17,21 @@ function login() {
     const campoSenha = document.getElementById("senha");
 
     if (!campoUsuario || !campoSenha) {
-        alert("Não encontrei os campos de login. Verifique o index.html.");
+        alert("Não encontrei os campos de login.");
         return;
     }
 
     const usuario = campoUsuario.value.trim();
     const senha = campoSenha.value;
 
-    const usuarioSalvo = localStorage.getItem("usuario");
-    const senhaSalva = localStorage.getItem("senha");
-
-    if (!usuarioSalvo || !senhaSalva) {
-        alert("Faça seu cadastro antes de entrar.");
-        return;
-    }
-
-    if (usuario === usuarioSalvo && senha === senhaSalva) {
+    if (
+        usuario === localStorage.getItem("usuario") &&
+        senha === localStorage.getItem("senha") &&
+        usuario !== ""
+    ) {
         window.location.href = "./home.html";
     } else {
-        alert("Usuário ou senha incorretos.");
+        alert("Usuário ou senha incorretos. Se ainda não tem cadastro, cadastre-se primeiro.");
     }
 }
 
@@ -53,7 +49,7 @@ function iniciarGravacao() {
         window.webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
-        alert("Seu navegador não suporta reconhecimento de voz. Tente usar o Chrome.");
+        alert("Use o Google Chrome para tentar transcrever a aula.");
         return;
     }
 
@@ -79,17 +75,14 @@ function iniciarGravacao() {
         }
 
         const campo = document.getElementById("textoAula");
-
-        if (campo) {
-            campo.value += texto;
-        }
+        if (campo) campo.value += texto;
     };
 
     recognition.onerror = function (event) {
         console.error("Erro na transcrição:", event.error);
 
         if (event.error === "not-allowed") {
-            alert("Permita o uso do microfone nas configurações do navegador.");
+            alert("Permita o acesso ao microfone.");
         } else if (event.error !== "no-speech") {
             alert("Erro na transcrição: " + event.error);
         }
@@ -103,7 +96,7 @@ function iniciarGravacao() {
         recognition.start();
     } catch (erro) {
         console.error(erro);
-        alert("Não foi possível iniciar a transcrição. Tente novamente.");
+        alert("Não foi possível iniciar. Tente novamente.");
     }
 }
 
@@ -113,15 +106,43 @@ function pararGravacao() {
     }
 }
 
-// AGENTE BLUE — RESUMO COM IA
+// AGENTE BLUE — IA PELO PUTER.JS
+async function consultarIA(instrucoes) {
+    if (!window.puter || !window.puter.ai) {
+        throw new Error(
+            "O Puter.js não carregou. Confira a conexão com a internet e a inclusão da biblioteca no home.html."
+        );
+    }
+
+    const resposta = await window.puter.ai.chat(instrucoes);
+
+    if (typeof resposta === "string") {
+        return resposta;
+    }
+
+    const texto =
+        resposta?.message?.content ??
+        resposta?.text;
+
+    if (typeof texto === "string") {
+        return texto;
+    }
+
+    if (Array.isArray(texto)) {
+        return texto
+            .map(item => item.text || "")
+            .join("\n");
+    }
+
+    throw new Error("A IA não retornou um texto válido.");
+}
+
+// GERAR RESUMO COM IA
 async function gerarResumo() {
     const campo = document.getElementById("textoAula");
     const resultado = document.getElementById("resultado");
 
-    if (!campo || !resultado) {
-        alert("Não encontrei a área de texto ou de resultado no home.html.");
-        return;
-    }
+    if (!campo || !resultado) return;
 
     const texto = campo.value.trim();
 
@@ -130,55 +151,35 @@ async function gerarResumo() {
         return;
     }
 
-    resultado.textContent = "🤖 O Agente BLUE está analisando sua aula...";
+    resultado.textContent = "🤖 O BLUE está preparando seu resumo...";
 
     try {
-        const resposta = await fetch(
-            "https://baby.bagara204.workers.dev",
-            {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                    message:
-                        "Resuma este conteúdo de aula em português brasileiro. Organize o resumo com título, conceitos principais e explicações simples:\n\n" +
-                        texto
-                })
-            }
+        const resumo = await consultarIA(
+            "Você é o assistente educacional BLUE. " +
+            "Responda em português brasileiro. " +
+            "Resuma o conteúdo da aula com um título, conceitos principais, " +
+            "explicações simples e uma conclusão. Não invente informações.\n\n" +
+            "CONTEÚDO DA AULA:\n" + texto
         );
 
-        const dados = await resposta.json();
-
-        if (!resposta.ok) {
-            throw new Error(
-                dados.details ||
-                dados.error ||
-                "O servidor recusou a solicitação."
-            );
-        }
-
-        if (!dados.answer) {
-            throw new Error("A IA não retornou um resumo.");
-        }
-
         const titulo = document.createElement("h3");
-        titulo.textContent = "🤖 Agente BLUE — Resumo inteligente";
+        titulo.textContent = "🤖 BLUE — Resumo inteligente";
 
         const paragrafo = document.createElement("p");
-        paragrafo.textContent = dados.answer;
+        paragrafo.style.whiteSpace = "pre-wrap";
+        paragrafo.textContent = resumo;
 
         resultado.replaceChildren(titulo, paragrafo);
 
     } catch (erro) {
-        console.error("Erro no Agente BLUE:", erro);
+        console.error("Erro ao gerar resumo:", erro);
 
         resultado.textContent =
             "Não foi possível gerar o resumo: " + erro.message;
     }
 }
 
-// EVITAR CÓDIGO HTML INDESEJADO NO MAPA
+// EVITAR HTML INDESEJADO
 function escaparHTML(texto) {
     return texto.replace(/[&<>"']/g, function (caractere) {
         const entidades = {
@@ -193,8 +194,8 @@ function escaparHTML(texto) {
     });
 }
 
-// MAPA MENTAL
-function gerarMapa() {
+// MAPA MENTAL COM IA
+async function gerarMapa() {
     const campo = document.getElementById("textoAula");
     const resultado = document.getElementById("resultado");
 
@@ -207,34 +208,52 @@ function gerarMapa() {
         return;
     }
 
-    const frases = texto
-        .split(/[.!?\n]+/)
-        .map(frase => frase.trim())
-        .filter(Boolean);
+    resultado.textContent = "🧠 O BLUE está criando seu mapa mental...";
 
-    let html = `
-        <h3>🧠 Mapa Mental</h3>
-        <div class="mindmap">
-            <div class="centro">Tema principal</div>
-    `;
+    try {
+        const resposta = await consultarIA(
+            "Você é o assistente educacional BLUE. " +
+            "Crie um mapa mental em português brasileiro a partir da aula. " +
+            "Escreva o TEMA PRINCIPAL na primeira linha. " +
+            "Depois, liste de 4 a 8 conceitos importantes, um por linha, " +
+            "com uma explicação curta para cada um. " +
+            "Não use Markdown complexo.\n\n" +
+            "CONTEÚDO DA AULA:\n" + texto
+        );
 
-    frases.forEach(frase => {
-        html += `
-            <div class="ramo">
-                <span>➜</span>
-                <div class="caixa">${escaparHTML(frase)}</div>
-            </div>
-        `;
-    });
+        const titulo = document.createElement("h3");
+        titulo.textContent = "🧠 Mapa Mental — BLUE";
 
-    html += "</div>";
-    resultado.innerHTML = html;
+        const mapa = document.createElement("div");
+        mapa.className = "mindmap";
+        mapa.style.display = "flex";
+        mapa.style.flexDirection = "column";
+        mapa.style.gap = "12px";
+
+        resposta.split("\n").filter(linha => linha.trim()).forEach(linha => {
+            const caixa = document.createElement("div");
+            caixa.className = "caixa";
+            caixa.style.padding = "12px";
+            caixa.style.borderRadius = "10px";
+            caixa.style.whiteSpace = "pre-wrap";
+            caixa.textContent = linha.replace(/^[-*•#>\s]+/, "");
+            mapa.appendChild(caixa);
+        });
+
+        resultado.replaceChildren(titulo, mapa);
+
+    } catch (erro) {
+        console.error("Erro ao criar mapa mental:", erro);
+
+        resultado.textContent =
+            "Não foi possível criar o mapa mental: " + erro.message;
+    }
 }
 
 // EXPORTAR PDF
 function gerarPDF() {
     if (!window.jspdf || !window.jspdf.jsPDF) {
-        alert("A biblioteca de PDF não carregou. Verifique sua conexão.");
+        alert("A biblioteca de PDF não carregou. Verifique a conexão.");
         return;
     }
 
@@ -250,7 +269,7 @@ function gerarPDF() {
     const doc = new jsPDF();
 
     doc.setFontSize(16);
-    doc.text("BLUE - Resumo da aula", 10, 15);
+    doc.text("BLUE - Material de estudo", 10, 15);
 
     doc.setFontSize(11);
 
@@ -267,5 +286,5 @@ function gerarPDF() {
         y += 7;
     });
 
-    doc.save("Resumo_BLUE.pdf");
+    doc.save("Material_BLUE.pdf");
 }
